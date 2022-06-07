@@ -1,53 +1,52 @@
 ﻿# Version 0.1
 
 
-#Запускаем в бесконечном цмкле с интервалом 5 секунд
+# Run in an infinite loop at intervals of 5 seconds
 while (1 -eq 1) {
 
-#Сохраняем текущие настройки протоколов
+# Save the current security protocol settings
 $cur = [System.Net.ServicePointManager]::SecurityProtocol
 try {
-    #Без этого айка не отдает токен
+    # Without it, the IIKO does not give the token
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
 
-    #Определяем текущую директорию, в которой лежит скрипт
+    # Define the current directory where the script is located
     $currentPath = $PSScriptRoot
 
-    #Получаем токен
+    # Getting token
     try {
        $token = (Invoke-WebRequest -Uri http://localhost:9042/api/login/2050).Content.Trim('"')
 
-        #Скорее всего придется хранить токен в переменной, т.к. не дает часто обновлять (на будущее)
+        # Most likely you will have to store the token in a variable, since it does not allow for frequent updates
         $tokenFile = $currentPath + "\token.txt"
         $token | Out-File -FilePath $tokenFile
 
     } catch [Exception] {
-        # Если не получилось взять токен из айки - пытаемся использовать сохраненный в файле
+        # If it was not possible to get the token from the IIKO - try to use the saved in the file
         $tokenFile = $currentPath + "\token.txt"
         $token = Get-Content $tokenFile
     }
 
-
-    #Создаем запрос на получение заказов
+    # Creating a request to receive orders
     $orderRequest = Invoke-WebRequest -Uri http://localhost:9042/api/orders?key=$token
     
-    #Получаем имя устройства
+    # Getting the device name
     $deviceName = $env:computername
 
-    #Получаем адрес order service
+    # Getting the order service address
     $urlConfFile = $currentPath + "\url.conf"
     $orderServiceUrl = Get-Content $urlConfFile
     $tempUrl = $orderServiceUrl + "?posDeviceName="  + $deviceName
 
-    #Отправляем данные в order
+    # Sending data to the order service
     Invoke-WebRequest $tempUrl -ContentType "application/json" -Method Post -Body $orderRequest.Content
 
 } finally {
-    #Возвращаем настройки протоколов
+    # Returning protocol settings
     [System.Net.ServicePointManager]::SecurityProtocol = $cur
 }
 
-#Ждем 5 секунд и повторяем
+# Wait 5 seconds and then repeat
 Start-Sleep -Seconds 5
 
 }
